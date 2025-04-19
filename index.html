@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Live Webcam Classification</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs"></script>
+    <script src="https://cdn.roboflow.com/0.2.26/roboflow.js"></script>
+    <style>
+      body { font-family: sans-serif; text-align: center; margin: 2rem; }
+      video { width: 95%; max-width: 400px; border-radius: 10px; }
+      h2 { margin-top: 1rem; }
+    </style>
+  </head>
+  <body>
+    <h1>📸 Live Equipment Classifier</h1>
+    <video id="video" autoplay playsinline muted></video>
+    <h2 id="prediction">Waiting for prediction...</h2>
+
+    <script>
+      const video = document.getElementById("video");
+      const predictionEl = document.getElementById("prediction");
+
+      async function setupCamera() {
+        const stream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: "environment" },
+          audio: false
+        });
+        video.srcObject = stream;
+        return new Promise(resolve => {
+          video.onloadedmetadata = () => resolve(video);
+        });
+      }
+
+      async function main() {
+        await setupCamera();
+        video.play();
+
+        const rf = new window.roboflow.Auth({
+          publishable_key: "BsV14dUbsaIXkffR9zzH"
+        });
+
+        const project = await rf.load({
+          model: "heavy-equipment-classification",
+          version: 1
+        });
+
+        async function classifyFrame() {
+          const prediction = await project.predict(video);
+          const top = prediction?.top?.[0];
+
+          if (top) {
+            predictionEl.innerText = `🛠 ${top.class} (${(top.confidence * 100).toFixed(2)}%)`;
+          } else {
+            predictionEl.innerText = "No prediction yet...";
+          }
+
+          requestAnimationFrame(classifyFrame);
+        }
+
+        classifyFrame();
+      }
+
+      main();
+    </script>
+  </body>
+</html>
